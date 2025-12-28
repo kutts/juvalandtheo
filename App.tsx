@@ -3,8 +3,11 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { Post, Page, AuthUser, Theme } from './types';
 import { INITIAL_POSTS } from './constants';
 import PostCard from './components/PostCard';
-import HeroAlbum from './components/HeroRadar'; 
+import HeroAlbum from './components/HeroRadar';
 import { generateBilingualPost } from './services/geminiService';
+import FirstTimeSetup from './components/FirstTimeSetup';
+import SettingsPage from './components/SettingsPage';
+import { migrateAuthIfNeeded, isAuthInitialized, verifyLogin, needsPinUpdate } from './services/authService';
 
 const MAX_POSTS_IN_STORAGE = 12;
 const THEMES: Theme[] = ['sunny', 'evening', 'park', 'home'];
@@ -20,6 +23,7 @@ const App: React.FC = () => {
   const [loginTarget, setLoginTarget] = useState<AuthUser>(null);
   const [theme, setTheme] = useState<Theme>('sunny');
   const [heroFilter, setHeroFilter] = useState('all');
+  const [showPinWarning, setShowPinWarning] = useState(false);
   
   const [pendingImages, setPendingImages] = useState<string[]>([]);
   const [userContext, setUserContext] = useState('');
@@ -59,24 +63,37 @@ const App: React.FC = () => {
   }, [posts, heroFilter]);
 
   useEffect(() => {
+    try {
+      // Check and migrate auth system
+      const migrated = migrateAuthIfNeeded();
+
+      if (!isAuthInitialized()) {
+        setCurrentPage('firstTimeSetup');
+      }
+
+      if (needsPinUpdate()) {
+        setShowPinWarning(true);
+      }
+    } catch (error) {
+      console.error("Auth initialization failed:", error);
+    }
+
     // Pick a random theme once on load
     const randomTheme = THEMES[Math.floor(Math.random() * THEMES.length)];
     setTheme(randomTheme);
-  }, []);
 
-  useEffect(() => {
     try {
       const savedPosts = localStorage.getItem('juval-theo-posts');
       const savedLang = localStorage.getItem('juval-theo-lang');
       const savedUser = localStorage.getItem('juval-theo-user') as AuthUser;
-      
+
       if (savedPosts) {
         const parsed = JSON.parse(savedPosts);
         setPosts(Array.isArray(parsed) ? parsed : INITIAL_POSTS);
       } else {
         setPosts(INITIAL_POSTS);
       }
-      
+
       if (savedLang === 'en' || savedLang === 'es') setLang(savedLang);
       if (savedUser) setUser(savedUser);
     } catch (e) {
@@ -113,11 +130,17 @@ const App: React.FC = () => {
     const newPin = pin + digit;
     if (newPin.length <= 4) setPin(newPin);
     if (newPin.length === 4) {
-      const correctPin = loginTarget === 'Dad' ? '0000' : '5555';
-      if (newPin === correctPin) {
+      if (verifyLogin(loginTarget!, newPin)) {
         setUser(loginTarget);
         localStorage.setItem('juval-theo-user', loginTarget!);
-        setCurrentPage('home');
+
+        // Check if user needs to update PIN
+        if (needsPinUpdate()) {
+          setCurrentPage('settings');
+        } else {
+          setCurrentPage('home');
+        }
+
         setLoginTarget(null);
         setPin('');
       } else {
@@ -377,6 +400,26 @@ const App: React.FC = () => {
             {selectedPost ? <PostCard post={selectedPost} variant="large" lang={lang} onDelete={handleDeletePost} /> : <div className="text-white text-center text-2xl">Missing moment.</div>}
           </div>
         );
+      case 'firstTimeSetup':
+        return (
+          <FirstTimeSetup
+            lang={lang}
+            theme={theme}
+            onComplete={() => setCurrentPage('login')}
+          />
+        );
+      case 'settings':
+        return user ? (
+          <SettingsPage
+            lang={lang}
+            user={user}
+            theme={theme}
+            onBack={() => {
+              setShowPinWarning(false);
+              setCurrentPage('home');
+            }}
+          />
+        ) : null;
       default: return null;
     }
   };
@@ -393,10 +436,35 @@ const App: React.FC = () => {
             </div>
             <div className="flex items-center gap-4">
               <button onClick={toggleLanguage} className="bg-slate-100 text-slate-800 cartoon-border px-4 py-2 rounded-xl font-black text-sm uppercase hover:bg-slate-200 transition-colors shadow-sm">{lang === 'en' ? 'ES 🇪🇸' : 'EN 🇺🇸'}</button>
+              <button
+                onClick={() => setCurrentPage('settings')}
+                className="bg-slate-100 text-slate-800 cartoon-border px-4 py-2 rounded-xl font-black text-sm uppercase hover:bg-slate-200 transition-colors shadow-sm"
+                title={lang === 'es' ? 'Configuración' : 'Settings'}
+              >
+                ⚙️
+              </button>
               <button onClick={handleLogout} className="text-slate-400 font-black text-sm uppercase ml-4 hover:text-red-600 transition-colors">Logout</button>
             </div>
           </div>
         </nav>
+      )}
+      {showPinWarning && user && (
+        <div className="bg-amber-400 border-b-4 border-slate-800 p-4 text-center sticky top-[72px] z-40 animate-fade-in">
+          <p className="text-slate-800 font-black text-lg">
+            {lang === 'es'
+              ? '⚠️ Por favor cambia tu código secreto en Configuración'
+              : '⚠️ Please change your secret code in Settings'}
+          </p>
+          <button
+            onClick={() => {
+              setShowPinWarning(false);
+              setCurrentPage('settings');
+            }}
+            className="bg-slate-800 text-white px-6 py-2 rounded-xl font-black text-sm uppercase mt-2 hover:bg-slate-700 transition-colors"
+          >
+            {lang === 'es' ? 'Ir a Configuración' : 'Go to Settings'}
+          </button>
+        </div>
       )}
       <main className="relative z-10">{renderCurrentPageContent()}</main>
       {user && currentPage !== 'upload' && uploadStatus === 'idle' && (

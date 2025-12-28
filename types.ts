@@ -16,4 +16,4 @@ export interface Post {
 
 export type AuthUser = 'Dad' | 'Mom' | null;
 export type Theme = 'sunny' | 'evening' | 'park' | 'home';
-export type Page = 'home' | 'gallery' | 'upload' | 'latest' | 'detail' | 'login';
+export type Page = 'home' | 'gallery' | 'upload' | 'latest' | 'detail' | 'login' | 'settings' | 'firstTimeSetup';
