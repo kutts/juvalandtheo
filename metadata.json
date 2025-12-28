@@ -1,0 +1,7 @@
+{
+  "name": "The Juval & Theo Adventure Club",
+  "description": "A vibrant, cartoon-themed family portal for sharing and narrating the magical adventures of Juval and Theo using AI-powered storytelling.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
