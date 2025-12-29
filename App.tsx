@@ -5,9 +5,8 @@ import { INITIAL_POSTS } from './constants';
 import PostCard from './components/PostCard';
 import HeroAlbum from './components/HeroRadar';
 import { generateBilingualPost } from './services/geminiService';
-import FirstTimeSetup from './components/FirstTimeSetup';
 import SettingsPage from './components/SettingsPage';
-import { migrateAuthIfNeeded, isAuthInitialized, verifyLogin, needsPinUpdate } from './services/authService';
+import { migrateAuthIfNeeded, verifyLogin, needsPinUpdate } from './services/authService';
 import { compressImages } from './utils/imageCompression';
 import { getPosts, addPost, deletePost as deleteFirestorePost } from './services/firestoreService';
 import { uploadImages, deleteImages, uploadMedia, deleteMedia } from './services/storageService';
@@ -72,13 +71,8 @@ const App: React.FC = () => {
       try {
         await migrateAuthIfNeeded();
 
-        const initialized = await isAuthInitialized();
-        if (!initialized) {
-          setCurrentPage('firstTimeSetup');
-        }
-
         const needsUpdate = await needsPinUpdate();
-        if (needsUpdate) {
+        if (needsUpdate && user) {
           setShowPinWarning(true);
         }
       } catch (error) {
@@ -574,14 +568,6 @@ const App: React.FC = () => {
             <button onClick={() => setCurrentPage('home')} className="bg-white text-slate-800 cartoon-border px-8 py-4 rounded-2xl font-black text-xl mb-12 cartoon-button shadow-md">{t.back}</button>
             {selectedPost ? <PostCard post={selectedPost} variant="large" lang={lang} onDelete={handleDeletePost} /> : <div className="text-white text-center text-2xl">Missing moment.</div>}
           </div>
-        );
-      case 'firstTimeSetup':
-        return (
-          <FirstTimeSetup
-            lang={lang}
-            theme={theme}
-            onComplete={() => setCurrentPage('login')}
-          />
         );
       case 'settings':
         return user ? (
