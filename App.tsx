@@ -10,7 +10,7 @@ import SettingsPage from './components/SettingsPage';
 import { migrateAuthIfNeeded, isAuthInitialized, verifyLogin, needsPinUpdate } from './services/authService';
 import { compressImages } from './utils/imageCompression';
 import { getPosts, addPost, deletePost as deleteFirestorePost } from './services/firestoreService';
-import { uploadImages, deleteImages } from './services/storageService';
+import { uploadImages, deleteImages, uploadMedia, deleteMedia } from './services/storageService';
 
 const MAX_POSTS_IN_STORAGE = 12;
 const THEMES: Theme[] = ['space', 'ocean', 'jungle', 'sports', 'pokemon', 'dinosaur'];
@@ -29,6 +29,7 @@ const App: React.FC = () => {
   const [showPinWarning, setShowPinWarning] = useState(false);
   
   const [pendingImages, setPendingImages] = useState<string[]>([]);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]); // New: store actual File objects
   const [userContext, setUserContext] = useState('');
   const [taggedBoys, setTaggedBoys] = useState<string[]>([]);
   const [uploadDate, setUploadDate] = useState(new Date().toISOString().split('T')[0]);
@@ -197,22 +198,30 @@ const App: React.FC = () => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    // Read files as base64
-    const filePromises = Array.from(files).map((file: File) => {
+    const fileArray = Array.from(files);
+    setPendingFiles(fileArray); // Store File objects for upload
+
+    // Create preview URLs for display
+    const previewPromises = fileArray.map((file: File) => {
       return new Promise<string>((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result as string);
-        reader.readAsDataURL(file);
+        if (file.type.startsWith('video/')) {
+          // For videos, create object URL for preview
+          resolve(URL.createObjectURL(file));
+        } else {
+          // For images, read as base64 and compress
+          const reader = new FileReader();
+          reader.onloadend = async () => {
+            const base64 = reader.result as string;
+            const compressed = await compressImages([base64], 800, 0.7);
+            resolve(compressed[0]);
+          };
+          reader.readAsDataURL(file);
+        }
       });
     });
-    const base64Images = await Promise.all(filePromises);
 
-    // Compress images before uploading to Firebase
-    console.log('[COMPRESSION] Compressing', base64Images.length, 'images...');
-    const compressedImages = await compressImages(base64Images, 800, 0.7);
-    console.log('[COMPRESSION] Compression complete');
-
-    setPendingImages(compressedImages);
+    const previews = await Promise.all(previewPromises);
+    setPendingImages(previews);
     setUploadDate(new Date().toISOString().split('T')[0]);
   };
 
@@ -221,7 +230,9 @@ const App: React.FC = () => {
     setUploadStatus('uploading');
     try {
       console.log('[SUBMIT] Generating content with AI...');
-      const content = await generateBilingualPost(pendingImages, user, userContext, taggedBoys);
+      // For AI generation, only pass image previews (not videos)
+      const imagePreviewsOnly = pendingImages.filter((_, idx) => !pendingFiles[idx]?.type.startsWith('video/'));
+      const content = await generateBilingualPost(imagePreviewsOnly.length > 0 ? imagePreviewsOnly : pendingImages, user, userContext, taggedBoys);
 
       // Create a localized date string from the picker value
       const dateParts = uploadDate.split('-');
@@ -230,15 +241,18 @@ const App: React.FC = () => {
       // Generate temporary ID for the post (will be replaced by Firestore)
       const tempId = Date.now().toString();
 
-      console.log('[SUBMIT] Uploading images to Firebase Storage...');
-      // Upload images to Firebase Storage and get URLs
-      const imageUrls = await uploadImages(pendingImages, tempId);
+      console.log('[SUBMIT] Uploading media to Firebase Storage...');
+      // Upload media (images and videos) to Firebase Storage and get MediaItems
+      const mediaItems = await uploadMedia(pendingFiles, tempId);
+
+      // Extract URLs for backward compatibility
+      const imageUrls = mediaItems.map(item => item.url);
 
       console.log('[SUBMIT] Saving post to Firestore...');
       // Save post to Firestore
       const postId = await addPost({
-        id: '', // Firestore will assign the ID
-        images: imageUrls, // Store Firebase URLs instead of base64
+        images: imageUrls, // Store URLs for backward compatibility
+        media: mediaItems, // Store media items with type info
         en: content.en,
         es: content.es,
         date: formattedDate,
@@ -250,6 +264,7 @@ const App: React.FC = () => {
       const newPost: Post = {
         id: postId,
         images: imageUrls,
+        media: mediaItems,
         en: content.en,
         es: content.es,
         date: formattedDate,
@@ -265,6 +280,7 @@ const App: React.FC = () => {
 
       setTimeout(() => {
         setPendingImages([]);
+        setPendingFiles([]);
         setUserContext('');
         setTaggedBoys([]);
         setCurrentPage('home');
@@ -499,7 +515,7 @@ const App: React.FC = () => {
                     <h4 className="text-4xl font-black text-white uppercase">{user === 'Dad' ? t.dadCorner : t.momCorner}</h4>
                     <div className="mt-8 bg-white text-slate-800 px-8 py-4 rounded-3xl font-black text-xl uppercase cartoon-border inline-block hover:bg-amber-400 transition-colors">✨ Choose Photos</div>
                   </div>
-                  <input type="file" multiple className="hidden" accept="image/*" onChange={handleFileSelect} />
+                  <input type="file" multiple className="hidden" accept="image/*,video/*" onChange={handleFileSelect} />
                 </label>
                 <button onClick={() => setCurrentPage('home')} className={`mt-16 font-black text-2xl uppercase transition-all hover:scale-110 ${theme === 'evening' ? 'text-white' : 'text-slate-800'}`}>{t.back}</button>
               </div>
@@ -507,7 +523,19 @@ const App: React.FC = () => {
               <div className="animate-fade-in pb-24">
                 <h2 className={`text-4xl font-black uppercase mb-8 ${theme === 'evening' ? 'text-white' : 'text-slate-800'}`}>{t.tellStory}</h2>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                  {pendingImages.map((img, i) => <div key={i} className="aspect-square cartoon-border rounded-2xl overflow-hidden bg-white shadow-md hover:scale-105 transition-transform"><img src={img} className="w-full h-full object-cover" alt="p" /></div>)}
+                  {pendingImages.map((url: string, i: number) => {
+                    const isVideo = pendingFiles[i]?.type.startsWith('video/');
+                    return (
+                      <div key={i} className="aspect-square cartoon-border rounded-2xl overflow-hidden bg-white shadow-md hover:scale-105 transition-transform relative">
+                        {isVideo ? (
+                          <video src={url} className="w-full h-full object-cover" muted playsInline />
+                        ) : (
+                          <img src={url} className="w-full h-full object-cover" alt="p" />
+                        )}
+                        {isVideo && <div className="absolute inset-0 flex items-center justify-center pointer-events-none"><span className="text-4xl">🎬</span></div>}
+                      </div>
+                    );
+                  })}
                 </div>
                 
                 {/* Date Selection Feature */}

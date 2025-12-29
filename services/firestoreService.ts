@@ -50,6 +50,7 @@ export async function getPosts(maxPosts: number = 50): Promise<Post[]> {
       posts.push({
         id: doc.id,
         images: data.images,
+        media: data.media, // Include media field for videos
         en: data.en,
         es: data.es,
         date: data.date,

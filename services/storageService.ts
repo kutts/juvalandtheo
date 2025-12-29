@@ -1,5 +1,6 @@
-import { ref, uploadString, getDownloadURL, deleteObject } from 'firebase/storage';
+import { ref, uploadString, getDownloadURL, deleteObject, uploadBytes } from 'firebase/storage';
 import { storage } from './firebase';
+import { MediaItem } from '../types';
 
 /**
  * Upload a base64 image to Firebase Storage
@@ -84,5 +85,85 @@ export async function deleteImages(imageUrls: string[]): Promise<void> {
   } catch (error) {
     console.error('[STORAGE] Error deleting images:', error);
     // Don't throw - some images might already be deleted
+  }
+}
+
+/**
+ * Upload a video file to Firebase Storage
+ * @param file - Video file blob
+ * @param path - Storage path (e.g., 'posts/postId/video1.mp4')
+ * @returns Download URL for the uploaded video
+ */
+export async function uploadVideo(file: Blob, path: string): Promise<string> {
+  try {
+    const storageRef = ref(storage, path);
+    const snapshot = await uploadBytes(storageRef, file);
+    const downloadURL = await getDownloadURL(snapshot.ref);
+
+    console.log('[STORAGE] Video uploaded:', path);
+    return downloadURL;
+  } catch (error) {
+    console.error('[STORAGE] Error uploading video:', error);
+    throw error;
+  }
+}
+
+/**
+ * Upload mixed media (images and videos) to Firebase Storage
+ * @param files - Array of File objects (images or videos)
+ * @param postId - Post ID for organizing media
+ * @returns Array of MediaItem objects with URLs and types
+ */
+export async function uploadMedia(files: File[], postId: string): Promise<MediaItem[]> {
+  try {
+    const uploadPromises = files.map(async (file, index) => {
+      const isVideo = file.type.startsWith('video/');
+      const extension = isVideo ? 'mp4' : 'jpg';
+      const prefix = isVideo ? 'video' : 'image';
+      const path = `posts/${postId}/${prefix}_${index}.${extension}`;
+
+      if (isVideo) {
+        const url = await uploadVideo(file, path);
+        return { url, type: 'video' as const };
+      } else {
+        // For images, convert to base64 and compress
+        const base64 = await fileToBase64(file);
+        const url = await uploadImage(base64, path);
+        return { url, type: 'image' as const };
+      }
+    });
+
+    const mediaItems = await Promise.all(uploadPromises);
+    console.log('[STORAGE] Uploaded', mediaItems.length, 'media items for post', postId);
+    return mediaItems;
+  } catch (error) {
+    console.error('[STORAGE] Error uploading media:', error);
+    throw error;
+  }
+}
+
+/**
+ * Convert File to base64 string
+ */
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+/**
+ * Delete all media for a post
+ * @param mediaItems - Array of media items to delete
+ */
+export async function deleteMedia(mediaItems: MediaItem[]): Promise<void> {
+  try {
+    const deletePromises = mediaItems.map(item => deleteImage(item.url)); // deleteImage works for videos too
+    await Promise.all(deletePromises);
+    console.log('[STORAGE] Deleted', mediaItems.length, 'media items');
+  } catch (error) {
+    console.error('[STORAGE] Error deleting media:', error);
   }
 }

@@ -4,9 +4,15 @@ export interface PostContent {
   caption: string;
 }
 
+export interface MediaItem {
+  url: string;
+  type: 'image' | 'video';
+}
+
 export interface Post {
   id: string;
-  images: string[];
+  images: string[]; // Deprecated - kept for backward compatibility
+  media?: MediaItem[]; // New field for mixed media
   en: PostContent;
   es: PostContent;
   date: string;

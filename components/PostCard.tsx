@@ -17,12 +17,18 @@ const PostCard: React.FC<PostCardProps> = ({ post, variant = 'small', lang, onDe
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
   const imageRef = useRef<HTMLImageElement>(null);
-  
+  const videoRef = useRef<HTMLVideoElement>(null);
+
   const minSwipeDistance = 50;
   const byLabel = lang === 'es' ? 'Por' : 'By';
   const deleteConfirmLabel = lang === 'es' ? '¿Borrar Recuerdo?' : 'Delete Memory?';
-  
+
   const content = post[lang];
+
+  // Use media array if available, otherwise fall back to images array
+  const mediaItems = post.media || post.images.map((url: string) => ({ url, type: 'image' as const }));
+  const activeMedia = mediaItems[activeImageIndex];
+  const isVideo = activeMedia?.type === 'video';
   
   const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
     const { naturalWidth, naturalHeight } = e.currentTarget;
@@ -32,14 +38,14 @@ const PostCard: React.FC<PostCardProps> = ({ post, variant = 'small', lang, onDe
   };
 
   const handleNext = () => {
-    if (post.images.length > 1) {
-      setActiveImageIndex((prev) => (prev + 1) % post.images.length);
+    if (mediaItems.length > 1) {
+      setActiveImageIndex((prev) => (prev + 1) % mediaItems.length);
     }
   };
 
   const handlePrev = () => {
-    if (post.images.length > 1) {
-      setActiveImageIndex((prev) => (prev - 1 + post.images.length) % post.images.length);
+    if (mediaItems.length > 1) {
+      setActiveImageIndex((prev) => (prev - 1 + mediaItems.length) % mediaItems.length);
     }
   };
 
@@ -170,19 +176,32 @@ const PostCard: React.FC<PostCardProps> = ({ post, variant = 'small', lang, onDe
           backgroundSize: '20px 20px'
         }}
       >
-        <img 
-          key={post.images[activeImageIndex]}
-          ref={imageRef}
-          src={post.images[activeImageIndex]} 
-          alt={content.title} 
-          onLoad={handleImageLoad}
-          className={`animate-fade-in transition-all duration-500 object-contain relative z-0 p-6 select-none
-            ${isLarge ? 'max-w-full max-h-[75vh] w-auto h-auto' : 'w-full h-full'}
-          `}
-          draggable="false"
-        />
-        
-        {post.images.length > 1 && !showConfirm && (
+        {isVideo ? (
+          <video
+            key={activeMedia.url}
+            ref={videoRef}
+            src={activeMedia.url}
+            controls
+            playsInline
+            className={`animate-fade-in transition-all duration-500 object-contain relative z-0 p-6 select-none
+              ${isLarge ? 'max-w-full max-h-[75vh] w-auto h-auto' : 'w-full h-full'}
+            `}
+          />
+        ) : (
+          <img
+            key={activeMedia.url}
+            ref={imageRef}
+            src={activeMedia.url}
+            alt={content.title}
+            onLoad={handleImageLoad}
+            className={`animate-fade-in transition-all duration-500 object-contain relative z-0 p-6 select-none
+              ${isLarge ? 'max-w-full max-h-[75vh] w-auto h-auto' : 'w-full h-full'}
+            `}
+            draggable="false"
+          />
+        )}
+
+        {mediaItems.length > 1 && !showConfirm && (
           <div className="absolute inset-0 z-10 pointer-events-none">
             <div className="absolute inset-y-0 left-0 flex items-center px-6 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-auto hidden md:flex">
               <button 
@@ -208,9 +227,9 @@ const PostCard: React.FC<PostCardProps> = ({ post, variant = 'small', lang, onDe
             </div>
             
             <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2 md:hidden">
-              {post.images.map((_, i) => (
-                <div 
-                  key={i} 
+              {mediaItems.map((_, i) => (
+                <div
+                  key={i}
                   className={`w-2.5 h-2.5 rounded-full border-2 border-slate-800 transition-all ${i === activeImageIndex ? 'bg-amber-400 scale-125' : 'bg-white'}`}
                 />
               ))}
