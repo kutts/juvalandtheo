@@ -33,7 +33,7 @@ const App: React.FC = () => {
   const initialized = useRef(false);
 
   const t = {
-    club: lang === 'es' ? 'Nuestro Álbum Familiar' : 'Our Family Album',
+    club: lang === 'es' ? 'Juval & Theo' : 'Juval & Theo',
     home: lang === 'es' ? 'Inicio' : 'Home',
     latest: lang === 'es' ? 'Lo Más Nuevo' : 'Latest',
     welcome: lang === 'es' ? '¡Bienvenidos a nuestro mundo!' : "Welcome to our world!",
