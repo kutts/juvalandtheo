@@ -8,7 +8,9 @@ import { generateBilingualPost } from './services/geminiService';
 import FirstTimeSetup from './components/FirstTimeSetup';
 import SettingsPage from './components/SettingsPage';
 import { migrateAuthIfNeeded, isAuthInitialized, verifyLogin, needsPinUpdate } from './services/authService';
-import { compressImages, getLocalStorageSize } from './utils/imageCompression';
+import { compressImages } from './utils/imageCompression';
+import { getPosts, addPost, deletePost as deleteFirestorePost } from './services/firestoreService';
+import { uploadImages, deleteImages } from './services/storageService';
 
 const MAX_POSTS_IN_STORAGE = 12;
 const THEMES: Theme[] = ['space', 'ocean', 'jungle', 'sports', 'pokemon', 'dinosaur'];
@@ -83,70 +85,42 @@ const App: React.FC = () => {
     const randomTheme = THEMES[Math.floor(Math.random() * THEMES.length)];
     setTheme(randomTheme);
 
+    // Load user preferences from localStorage (auth and language)
     try {
-      const savedPosts = localStorage.getItem('juval-theo-posts');
       const savedLang = localStorage.getItem('juval-theo-lang');
       const savedUser = localStorage.getItem('juval-theo-user') as AuthUser;
-
-      console.log('[INIT] Loading from localStorage:', {
-        hasSavedPosts: !!savedPosts,
-        postsCount: savedPosts ? JSON.parse(savedPosts).length : 0,
-        savedLang,
-        savedUser
-      });
-
-      if (savedPosts) {
-        const parsed = JSON.parse(savedPosts);
-        setPosts(Array.isArray(parsed) ? parsed : INITIAL_POSTS);
-      } else {
-        setPosts(INITIAL_POSTS);
-      }
 
       if (savedLang === 'en' || savedLang === 'es') setLang(savedLang);
       if (savedUser) setUser(savedUser);
     } catch (e) {
-      console.error("Storage load failed", e);
-      setPosts(INITIAL_POSTS);
+      console.error('[INIT] Failed to load user preferences', e);
     }
+
+    // Load posts from Firebase
+    const loadPosts = async () => {
+      try {
+        console.log('[INIT] Loading posts from Firebase...');
+        const firebasePosts = await getPosts(MAX_POSTS_IN_STORAGE);
+
+        if (firebasePosts.length > 0) {
+          setPosts(firebasePosts);
+          console.log('[INIT] Loaded', firebasePosts.length, 'posts from Firebase');
+        } else {
+          // No posts yet, show initial posts as examples
+          setPosts(INITIAL_POSTS);
+          console.log('[INIT] No posts in Firebase, showing initial posts');
+        }
+      } catch (error) {
+        console.error('[INIT] Failed to load posts from Firebase:', error);
+        setPosts(INITIAL_POSTS);
+      }
+    };
+
+    loadPosts();
     initialized.current = true;
   }, []);
 
-  useEffect(() => {
-    if (initialized.current) {
-      try {
-        console.log('[SAVE] Saving to localStorage:', posts.length, 'posts');
-        localStorage.setItem('juval-theo-posts', JSON.stringify(posts));
-        console.log('[SAVE] Success! Storage usage:', getLocalStorageSize().toFixed(2), 'MB');
-      } catch (e: any) {
-        console.error('[SAVE] Failed to save posts:', e.name, e.message);
-
-        // If quota exceeded, reduce number of posts
-        if (e.name === 'QuotaExceededError' || e.message?.includes('quota')) {
-          console.warn('[SAVE] Storage quota exceeded. Reducing to 3 most recent posts...');
-
-          // Keep only 3 most recent posts
-          const reducedPosts = posts.slice(0, 3);
-          setPosts(reducedPosts);
-
-          // Try to save again
-          try {
-            localStorage.setItem('juval-theo-posts', JSON.stringify(reducedPosts));
-            console.log('[SAVE] Successfully saved', reducedPosts.length, 'posts after pruning');
-
-            // Alert user
-            alert(lang === 'es'
-              ? 'Espacio de almacenamiento lleno. Solo se guardarán los 3 recuerdos más recientes.'
-              : 'Storage space full. Only the 3 most recent memories will be saved.');
-          } catch (retryError) {
-            console.error('[SAVE] Failed even after pruning:', retryError);
-            alert(lang === 'es'
-              ? 'No se pueden guardar los recuerdos. Por favor, borra algunos recuerdos antiguos.'
-              : 'Cannot save memories. Please delete some old memories.');
-          }
-        }
-      }
-    }
-  }, [posts, lang]);
+  // No longer need to sync posts to localStorage - Firebase handles persistence
 
   const toggleLanguage = () => {
     const newLang = lang === 'en' ? 'es' : 'en';
@@ -184,11 +158,32 @@ const App: React.FC = () => {
     }
   };
 
-  const handleDeletePost = useCallback((postId: string) => {
-    setPosts(prev => prev.filter(p => p.id !== postId));
-    setSelectedPost(current => (current?.id === postId ? null : current));
-    setCurrentPage(prev => (prev === 'detail' || prev === 'latest' ? 'home' : prev));
-  }, []);
+  const handleDeletePost = useCallback(async (postId: string) => {
+    try {
+      // Find the post to get image URLs
+      const post = posts.find(p => p.id === postId);
+
+      if (post) {
+        // Delete images from Firebase Storage
+        await deleteImages(post.images);
+
+        // Delete post from Firestore
+        await deleteFirestorePost(postId);
+
+        // Update local state
+        setPosts(prev => prev.filter(p => p.id !== postId));
+        setSelectedPost(current => (current?.id === postId ? null : current));
+        setCurrentPage(prev => (prev === 'detail' || prev === 'latest' ? 'home' : prev));
+
+        console.log('[DELETE] Post deleted successfully:', postId);
+      }
+    } catch (error) {
+      console.error('[DELETE] Failed to delete post:', error);
+      alert(lang === 'es'
+        ? 'Error al borrar el recuerdo. Intenta de nuevo.'
+        : 'Error deleting memory. Please try again.');
+    }
+  }, [posts, lang]);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -204,10 +199,10 @@ const App: React.FC = () => {
     });
     const base64Images = await Promise.all(filePromises);
 
-    // Compress images to save localStorage space
+    // Compress images before uploading to Firebase
     console.log('[COMPRESSION] Compressing', base64Images.length, 'images...');
     const compressedImages = await compressImages(base64Images, 800, 0.7);
-    console.log('[COMPRESSION] Compression complete. Storage usage:', getLocalStorageSize().toFixed(2), 'MB');
+    console.log('[COMPRESSION] Compression complete');
 
     setPendingImages(compressedImages);
     setUploadDate(new Date().toISOString().split('T')[0]);
@@ -217,22 +212,49 @@ const App: React.FC = () => {
     if (pendingImages.length === 0 || !user) return;
     setUploadStatus('uploading');
     try {
+      console.log('[SUBMIT] Generating content with AI...');
       const content = await generateBilingualPost(pendingImages, user, userContext, taggedBoys);
+
       // Create a localized date string from the picker value
       const dateParts = uploadDate.split('-');
       const formattedDate = new Date(parseInt(dateParts[0]), parseInt(dateParts[1]) - 1, parseInt(dateParts[2])).toLocaleDateString();
 
+      // Generate temporary ID for the post (will be replaced by Firestore)
+      const tempId = Date.now().toString();
+
+      console.log('[SUBMIT] Uploading images to Firebase Storage...');
+      // Upload images to Firebase Storage and get URLs
+      const imageUrls = await uploadImages(pendingImages, tempId);
+
+      console.log('[SUBMIT] Saving post to Firestore...');
+      // Save post to Firestore
+      const postId = await addPost({
+        id: '', // Firestore will assign the ID
+        images: imageUrls, // Store Firebase URLs instead of base64
+        en: content.en,
+        es: content.es,
+        date: formattedDate,
+        author: user,
+        tags: ['Moment', user, ...taggedBoys]
+      });
+
+      // Create the post object with the Firestore ID
       const newPost: Post = {
-        id: Date.now().toString(),
-        images: pendingImages,
+        id: postId,
+        images: imageUrls,
         en: content.en,
         es: content.es,
         date: formattedDate,
         author: user,
         tags: ['Moment', user, ...taggedBoys]
       };
-      setPosts(prev => [newPost, ...prev].slice(0, MAX_POSTS_IN_STORAGE));
+
+      // Update local state
+      setPosts(prev => [newPost, ...prev]);
+
+      console.log('[SUBMIT] Post saved successfully:', postId);
       setUploadStatus('success');
+
       setTimeout(() => {
         setPendingImages([]);
         setUserContext('');
@@ -242,8 +264,11 @@ const App: React.FC = () => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }, 1500);
     } catch (error) {
+      console.error('[SUBMIT] Error saving post:', error);
       setUploadStatus('idle');
-      alert('Error saving memory.');
+      alert(lang === 'es'
+        ? 'Error al guardar el recuerdo. Intenta de nuevo.'
+        : 'Error saving memory. Please try again.');
     }
   };
 
