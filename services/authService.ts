@@ -1,17 +1,26 @@
 
 import bcrypt from 'bcryptjs';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { db } from './firebase';
 
-// Storage keys
+// Firestore document path for auth data
+const AUTH_DOC_PATH = 'settings/auth';
+
+// LocalStorage key for current user only
 export const STORAGE_KEYS = {
-  AUTH_DAD: 'juval-theo-auth-dad',
-  AUTH_MOM: 'juval-theo-auth-mom',
-  AUTH_INITIALIZED: 'juval-theo-auth-initialized',
-  AUTH_NEEDS_UPDATE: 'juval-theo-auth-needs-update',
   CURRENT_USER: 'juval-theo-user',
 } as const;
 
 // Salt rounds for bcrypt
 const SALT_ROUNDS = 10;
+
+// Auth data interface
+interface AuthData {
+  dadHash: string;
+  momHash: string;
+  initialized: boolean;
+  needsUpdate: boolean;
+}
 
 /**
  * Hash a PIN using bcrypt
@@ -38,38 +47,75 @@ export function verifyPin(pin: string, hash: string): boolean {
 }
 
 /**
+ * Get auth data from Firestore
+ */
+async function getAuthData(): Promise<AuthData | null> {
+  try {
+    const docRef = doc(db, AUTH_DOC_PATH);
+    const docSnap = await getDoc(docRef);
+
+    if (docSnap.exists()) {
+      return docSnap.data() as AuthData;
+    }
+    return null;
+  } catch (error) {
+    console.error('[AUTH] Error reading auth data:', error);
+    return null;
+  }
+}
+
+/**
+ * Save auth data to Firestore
+ */
+async function saveAuthData(data: AuthData): Promise<void> {
+  try {
+    const docRef = doc(db, AUTH_DOC_PATH);
+    await setDoc(docRef, data);
+    console.log('[AUTH] Auth data saved to Firestore');
+  } catch (error) {
+    console.error('[AUTH] Error saving auth data:', error);
+    throw error;
+  }
+}
+
+/**
  * Initialize auth system with default or custom PINs
  */
-export function initializeAuth(dadPin: string = '0000', momPin: string = '5555'): void {
+export async function initializeAuth(dadPin: string = '0000', momPin: string = '5555'): Promise<void> {
   const dadHash = hashPin(dadPin);
   const momHash = hashPin(momPin);
 
-  localStorage.setItem(STORAGE_KEYS.AUTH_DAD, dadHash);
-  localStorage.setItem(STORAGE_KEYS.AUTH_MOM, momHash);
-  localStorage.setItem(STORAGE_KEYS.AUTH_INITIALIZED, 'true');
+  await saveAuthData({
+    dadHash,
+    momHash,
+    initialized: true,
+    needsUpdate: dadPin === '0000' && momPin === '5555' // Mark as needing update if using defaults
+  });
 }
 
 /**
  * Check if auth system is initialized
  */
-export function isAuthInitialized(): boolean {
-  return localStorage.getItem(STORAGE_KEYS.AUTH_INITIALIZED) === 'true';
+export async function isAuthInitialized(): Promise<boolean> {
+  const authData = await getAuthData();
+  return authData?.initialized === true;
 }
 
 /**
  * Migrate from old hardcoded system to new hashed system
  */
-export function migrateAuthIfNeeded(): boolean {
+export async function migrateAuthIfNeeded(): Promise<boolean> {
   try {
-    if (!isAuthInitialized()) {
+    const initialized = await isAuthInitialized();
+    if (!initialized) {
       // Migrate with old default PINs
-      initializeAuth('0000', '5555');
-      localStorage.setItem(STORAGE_KEYS.AUTH_NEEDS_UPDATE, 'true');
+      await initializeAuth('0000', '5555');
+      console.log('[AUTH] Migrated to Firebase auth with default PINs');
       return true; // Migration occurred
     }
     return false; // Already initialized
   } catch (error) {
-    console.error('Error during auth migration:', error);
+    console.error('[AUTH] Error during auth migration:', error);
     return false;
   }
 }
@@ -77,43 +123,79 @@ export function migrateAuthIfNeeded(): boolean {
 /**
  * Verify login attempt
  */
-export function verifyLogin(user: 'Dad' | 'Mom', pin: string): boolean {
-  const storageKey = user === 'Dad' ? STORAGE_KEYS.AUTH_DAD : STORAGE_KEYS.AUTH_MOM;
-  const storedHash = localStorage.getItem(storageKey);
+export async function verifyLogin(user: 'Dad' | 'Mom', pin: string): Promise<boolean> {
+  try {
+    const authData = await getAuthData();
 
-  if (!storedHash) {
+    if (!authData) {
+      console.error('[AUTH] No auth data found');
+      return false;
+    }
+
+    const hash = user === 'Dad' ? authData.dadHash : authData.momHash;
+    return verifyPin(pin, hash);
+  } catch (error) {
+    console.error('[AUTH] Error verifying login:', error);
     return false;
   }
-
-  return verifyPin(pin, storedHash);
 }
 
 /**
  * Update user's PIN
  */
-export function updateUserPin(user: 'Dad' | 'Mom', newPin: string): void {
-  const storageKey = user === 'Dad' ? STORAGE_KEYS.AUTH_DAD : STORAGE_KEYS.AUTH_MOM;
-  const newHash = hashPin(newPin);
-  localStorage.setItem(storageKey, newHash);
+export async function updateUserPin(user: 'Dad' | 'Mom', newPin: string): Promise<void> {
+  try {
+    const authData = await getAuthData();
 
-  // Clear needs update flag if it exists
-  localStorage.removeItem(STORAGE_KEYS.AUTH_NEEDS_UPDATE);
+    if (!authData) {
+      throw new Error('Auth data not found');
+    }
+
+    const newHash = hashPin(newPin);
+
+    if (user === 'Dad') {
+      authData.dadHash = newHash;
+    } else {
+      authData.momHash = newHash;
+    }
+
+    authData.needsUpdate = false;
+
+    await saveAuthData(authData);
+    console.log('[AUTH] PIN updated for', user);
+  } catch (error) {
+    console.error('[AUTH] Error updating PIN:', error);
+    throw error;
+  }
 }
 
 /**
  * Check if user needs to update their PIN (after migration)
  */
-export function needsPinUpdate(): boolean {
-  return localStorage.getItem(STORAGE_KEYS.AUTH_NEEDS_UPDATE) === 'true';
+export async function needsPinUpdate(): Promise<boolean> {
+  try {
+    const authData = await getAuthData();
+    return authData?.needsUpdate === true;
+  } catch (error) {
+    console.error('[AUTH] Error checking PIN update status:', error);
+    return false;
+  }
 }
 
 /**
  * Clear all auth data (for testing/reset)
  */
-export function clearAuthData(): void {
-  localStorage.removeItem(STORAGE_KEYS.AUTH_DAD);
-  localStorage.removeItem(STORAGE_KEYS.AUTH_MOM);
-  localStorage.removeItem(STORAGE_KEYS.AUTH_INITIALIZED);
-  localStorage.removeItem(STORAGE_KEYS.AUTH_NEEDS_UPDATE);
-  localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
+export async function clearAuthData(): Promise<void> {
+  try {
+    await saveAuthData({
+      dadHash: '',
+      momHash: '',
+      initialized: false,
+      needsUpdate: false
+    });
+    localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
+    console.log('[AUTH] Auth data cleared');
+  } catch (error) {
+    console.error('[AUTH] Error clearing auth data:', error);
+  }
 }

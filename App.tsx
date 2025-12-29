@@ -66,20 +66,26 @@ const App: React.FC = () => {
   }, [posts, heroFilter]);
 
   useEffect(() => {
-    try {
-      // Check and migrate auth system
-      const migrated = migrateAuthIfNeeded();
+    // Check and migrate auth system
+    const initAuth = async () => {
+      try {
+        await migrateAuthIfNeeded();
 
-      if (!isAuthInitialized()) {
-        setCurrentPage('firstTimeSetup');
-      }
+        const initialized = await isAuthInitialized();
+        if (!initialized) {
+          setCurrentPage('firstTimeSetup');
+        }
 
-      if (needsPinUpdate()) {
-        setShowPinWarning(true);
+        const needsUpdate = await needsPinUpdate();
+        if (needsUpdate) {
+          setShowPinWarning(true);
+        }
+      } catch (error) {
+        console.error("[AUTH] initialization failed:", error);
       }
-    } catch (error) {
-      console.error("Auth initialization failed:", error);
-    }
+    };
+
+    initAuth();
 
     // Pick a random theme once on load
     const randomTheme = THEMES[Math.floor(Math.random() * THEMES.length)];
@@ -134,16 +140,18 @@ const App: React.FC = () => {
     setCurrentPage('login');
   };
 
-  const checkPin = (digit: string) => {
+  const checkPin = async (digit: string) => {
     const newPin = pin + digit;
     if (newPin.length <= 4) setPin(newPin);
     if (newPin.length === 4) {
-      if (verifyLogin(loginTarget!, newPin)) {
+      const isValid = await verifyLogin(loginTarget!, newPin);
+      if (isValid) {
         setUser(loginTarget);
         localStorage.setItem('juval-theo-user', loginTarget!);
 
         // Check if user needs to update PIN
-        if (needsPinUpdate()) {
+        const needsUpdate = await needsPinUpdate();
+        if (needsUpdate) {
           setCurrentPage('settings');
         } else {
           setCurrentPage('home');
@@ -409,19 +417,7 @@ const App: React.FC = () => {
     dinosaur: 'bg-[#c2410c]'   // Prehistoric orange/brown
   };
 
-  if (!user && currentPage !== 'login') {
-    return (
-      <div className={`min-h-screen ${themeClasses[theme]} flex flex-col items-center justify-center`}>
-        <div className="bg-white cartoon-border p-12 rounded-[50px] text-center animate-fade-in shadow-2xl relative overflow-hidden">
-          <div className="absolute -top-10 -right-10 w-32 h-32 bg-yellow-200 rounded-full opacity-50 blur-2xl" />
-          <h1 className="text-4xl font-black text-slate-800 mb-8 uppercase relative z-10">Our Family Album</h1>
-          <button onClick={() => setCurrentPage('login')} className="bg-amber-400 text-slate-800 cartoon-border px-12 py-6 rounded-3xl font-black text-2xl uppercase cartoon-button relative z-10">
-            Open Album 📖
-          </button>
-        </div>
-      </div>
-    );
-  }
+  // No auth gate - let everyone view the album!
 
   const renderCurrentPageContent = () => {
     switch (currentPage) {
@@ -578,27 +574,36 @@ const App: React.FC = () => {
   return (
     <div className={`min-h-screen pb-32 relative transition-colors duration-1000 ${themeClasses[theme]}`}>
       {renderBackground()}
-      {user && (
-        <nav className="bg-white/95 backdrop-blur-md border-b-4 border-slate-800 p-5 sticky top-0 z-50 shadow-sm">
-          <div className="max-w-7xl mx-auto flex justify-between items-center">
-            <div onClick={() => setCurrentPage('home')} className="flex items-center gap-3 cartoon-button cursor-pointer group">
-              <div className="bg-amber-400 p-3 rounded-2xl border-4 border-slate-800 transform group-hover:rotate-12 transition-transform shadow-md"><span className="text-3xl font-black text-slate-800">JT</span></div>
-              <span className="hidden sm:block text-2xl font-black text-slate-800 uppercase ml-2 tracking-tighter">{t.club}</span>
-            </div>
-            <div className="flex items-center gap-4">
-              <button onClick={toggleLanguage} className="bg-slate-100 text-slate-800 cartoon-border px-4 py-2 rounded-xl font-black text-sm uppercase hover:bg-slate-200 transition-colors shadow-sm">{lang === 'en' ? 'ES 🇪🇸' : 'EN 🇺🇸'}</button>
-              <button
-                onClick={() => setCurrentPage('settings')}
-                className="bg-slate-100 text-slate-800 cartoon-border px-4 py-2 rounded-xl font-black text-sm uppercase hover:bg-slate-200 transition-colors shadow-sm"
-                title={lang === 'es' ? 'Configuración' : 'Settings'}
-              >
-                ⚙️
-              </button>
-              <button onClick={handleLogout} className="text-slate-400 font-black text-sm uppercase ml-4 hover:text-red-600 transition-colors">Logout</button>
-            </div>
+      <nav className="bg-white/95 backdrop-blur-md border-b-4 border-slate-800 p-5 sticky top-0 z-50 shadow-sm">
+        <div className="max-w-7xl mx-auto flex justify-between items-center">
+          <div onClick={() => setCurrentPage('home')} className="flex items-center gap-3 cartoon-button cursor-pointer group">
+            <div className="bg-amber-400 p-3 rounded-2xl border-4 border-slate-800 transform group-hover:rotate-12 transition-transform shadow-md"><span className="text-3xl font-black text-slate-800">JT</span></div>
+            <span className="hidden sm:block text-2xl font-black text-slate-800 uppercase ml-2 tracking-tighter">{t.club}</span>
           </div>
-        </nav>
-      )}
+          <div className="flex items-center gap-4">
+            <button onClick={toggleLanguage} className="bg-slate-100 text-slate-800 cartoon-border px-4 py-2 rounded-xl font-black text-sm uppercase hover:bg-slate-200 transition-colors shadow-sm">{lang === 'en' ? 'ES 🇪🇸' : 'EN 🇺🇸'}</button>
+            {user ? (
+              <>
+                <button
+                  onClick={() => setCurrentPage('settings')}
+                  className="bg-slate-100 text-slate-800 cartoon-border px-4 py-2 rounded-xl font-black text-sm uppercase hover:bg-slate-200 transition-colors shadow-sm"
+                  title={lang === 'es' ? 'Configuración' : 'Settings'}
+                >
+                  ⚙️
+                </button>
+                <button onClick={handleLogout} className="text-slate-400 font-black text-sm uppercase ml-4 hover:text-red-600 transition-colors">Logout</button>
+              </>
+            ) : (
+              <button
+                onClick={() => setCurrentPage('login')}
+                className="bg-sky-500 text-white cartoon-border px-6 py-2 rounded-xl font-black text-sm uppercase hover:bg-sky-600 transition-colors shadow-sm"
+              >
+                Login
+              </button>
+            )}
+          </div>
+        </div>
+      </nav>
       {showPinWarning && user && (
         <div className="bg-amber-400 border-b-4 border-slate-800 p-4 text-center sticky top-[72px] z-40 animate-fade-in">
           <p className="text-slate-800 font-black text-lg">
@@ -618,8 +623,19 @@ const App: React.FC = () => {
         </div>
       )}
       <main className="relative z-10">{renderCurrentPageContent()}</main>
-      {user && currentPage !== 'upload' && uploadStatus === 'idle' && (
-        <button onClick={() => setCurrentPage('upload')} className="fixed bottom-10 right-10 w-24 h-24 bg-rose-500 text-white rounded-full flex items-center justify-center text-5xl cartoon-border z-40 hover:scale-110 active:scale-95 shadow-2xl transition-all">✨</button>
+      {currentPage !== 'upload' && currentPage !== 'login' && uploadStatus === 'idle' && (
+        <button
+          onClick={() => {
+            if (user) {
+              setCurrentPage('upload');
+            } else {
+              setCurrentPage('login');
+            }
+          }}
+          className="fixed bottom-10 right-10 w-24 h-24 bg-rose-500 text-white rounded-full flex items-center justify-center text-5xl cartoon-border z-40 hover:scale-110 active:scale-95 shadow-2xl transition-all"
+        >
+          ✨
+        </button>
       )}
       {uploadStatus !== 'idle' && (
         <div className="fixed inset-0 bg-amber-400/95 z-[100] flex items-center justify-center p-6 backdrop-blur-sm animate-fade-in">
