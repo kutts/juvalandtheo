@@ -8,6 +8,7 @@ import { generateBilingualPost } from './services/geminiService';
 import FirstTimeSetup from './components/FirstTimeSetup';
 import SettingsPage from './components/SettingsPage';
 import { migrateAuthIfNeeded, isAuthInitialized, verifyLogin, needsPinUpdate } from './services/authService';
+import { compressImages, getLocalStorageSize } from './utils/imageCompression';
 
 const MAX_POSTS_IN_STORAGE = 12;
 const THEMES: Theme[] = ['space', 'ocean', 'jungle', 'sports', 'pokemon', 'dinosaur'];
@@ -115,12 +116,37 @@ const App: React.FC = () => {
       try {
         console.log('[SAVE] Saving to localStorage:', posts.length, 'posts');
         localStorage.setItem('juval-theo-posts', JSON.stringify(posts));
-      } catch (e) {
-        console.warn("Storage full, pruning...", e);
-        setPosts(posts.slice(0, 5));
+        console.log('[SAVE] Success! Storage usage:', getLocalStorageSize().toFixed(2), 'MB');
+      } catch (e: any) {
+        console.error('[SAVE] Failed to save posts:', e.name, e.message);
+
+        // If quota exceeded, reduce number of posts
+        if (e.name === 'QuotaExceededError' || e.message?.includes('quota')) {
+          console.warn('[SAVE] Storage quota exceeded. Reducing to 3 most recent posts...');
+
+          // Keep only 3 most recent posts
+          const reducedPosts = posts.slice(0, 3);
+          setPosts(reducedPosts);
+
+          // Try to save again
+          try {
+            localStorage.setItem('juval-theo-posts', JSON.stringify(reducedPosts));
+            console.log('[SAVE] Successfully saved', reducedPosts.length, 'posts after pruning');
+
+            // Alert user
+            alert(lang === 'es'
+              ? 'Espacio de almacenamiento lleno. Solo se guardarán los 3 recuerdos más recientes.'
+              : 'Storage space full. Only the 3 most recent memories will be saved.');
+          } catch (retryError) {
+            console.error('[SAVE] Failed even after pruning:', retryError);
+            alert(lang === 'es'
+              ? 'No se pueden guardar los recuerdos. Por favor, borra algunos recuerdos antiguos.'
+              : 'Cannot save memories. Please delete some old memories.');
+          }
+        }
       }
     }
-  }, [posts]);
+  }, [posts, lang]);
 
   const toggleLanguage = () => {
     const newLang = lang === 'en' ? 'es' : 'en';
@@ -167,6 +193,8 @@ const App: React.FC = () => {
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
+
+    // Read files as base64
     const filePromises = Array.from(files).map((file: File) => {
       return new Promise<string>((resolve) => {
         const reader = new FileReader();
@@ -175,7 +203,13 @@ const App: React.FC = () => {
       });
     });
     const base64Images = await Promise.all(filePromises);
-    setPendingImages(base64Images);
+
+    // Compress images to save localStorage space
+    console.log('[COMPRESSION] Compressing', base64Images.length, 'images...');
+    const compressedImages = await compressImages(base64Images, 800, 0.7);
+    console.log('[COMPRESSION] Compression complete. Storage usage:', getLocalStorageSize().toFixed(2), 'MB');
+
+    setPendingImages(compressedImages);
     setUploadDate(new Date().toISOString().split('T')[0]);
   };
 
