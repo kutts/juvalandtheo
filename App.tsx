@@ -10,7 +10,7 @@ import SettingsPage from './components/SettingsPage';
 import { migrateAuthIfNeeded, isAuthInitialized, verifyLogin, needsPinUpdate } from './services/authService';
 
 const MAX_POSTS_IN_STORAGE = 12;
-const THEMES: Theme[] = ['sunny', 'evening', 'park', 'home'];
+const THEMES: Theme[] = ['space', 'ocean', 'jungle', 'sports'];
 
 const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<Page>('home');
@@ -215,31 +215,62 @@ const App: React.FC = () => {
   const backgroundItems = useMemo(() => {
     const items = [];
     const seed = theme.length; // Simple seed for basic randomization consistency
-    if (theme === 'sunny') {
-      // Very Slow Drift: 240s to 480s (4-8 minutes)
-      for (let i = 0; i < 4; i++) {
-        const top = 15 + i * 20;
-        const width = 300 + (i * 50) % 150;
-        const duration = 240 + (i * 40) % 240;
-        const delay = -(i * 60) % 300;
-        items.push(<div key={`c-${i}`} className="bg-cloud shadow-md" style={{ top: `${top}%`, width: `${width}px`, height: `${width/2.5}px`, animationDuration: `${duration}s`, animationDelay: `${delay}s` }} />);
-      }
-    } else if (theme === 'park' || theme === 'home') {
-      // Very Gentle Fall: 120s to 240s
-      for (let i = 0; i < 6; i++) {
-        const left = (i * 17) % 100;
-        const duration = 120 + (i * 25) % 120;
-        const delay = -(i * 40) % 180;
-        items.push(<div key={`l-${i}`} className="bg-leaf" style={{ left: `${left}%`, animationDuration: `${duration}s`, animationDelay: `${delay}s` }}>{i % 2 === 0 ? '🍃' : '🌼'}</div>);
-      }
-    } else if (theme === 'evening') {
-      // Extremely Slow Shimmer: 40s to 80s
-      for (let i = 0; i < 15; i++) {
+    if (theme === 'space') {
+      // Space: Stars, planets, and shooting stars
+      for (let i = 0; i < 20; i++) {
         const top = (i * 13) % 100;
         const left = (i * 23) % 100;
         const duration = 40 + (i * 7) % 40;
         const delay = -(i * 10) % 60;
         items.push(<div key={`s-${i}`} className="bg-star" style={{ top: `${top}%`, left: `${left}%`, animationDuration: `${duration}s`, animationDelay: `${delay}s` }}>✦</div>);
+      }
+      // Add planets
+      const planets = ['🪐', '🌎', '🌙'];
+      for (let i = 0; i < 3; i++) {
+        const top = 20 + i * 25;
+        const duration = 180 + i * 60;
+        items.push(<div key={`p-${i}`} className="bg-planet" style={{ top: `${top}%`, animationDuration: `${duration}s` }}>{planets[i]}</div>);
+      }
+    } else if (theme === 'ocean') {
+      // Ocean: Fish and bubbles
+      const fish = ['🐠', '🐟', '🐡', '🦈', '🐙'];
+      for (let i = 0; i < 8; i++) {
+        const left = (i * 15) % 100;
+        const duration = 15 + (i * 5) % 20;
+        const delay = -(i * 3) % 15;
+        items.push(<div key={`f-${i}`} className="bg-fish" style={{ left: `${left}%`, animationDuration: `${duration}s`, animationDelay: `${delay}s` }}>{fish[i % fish.length]}</div>);
+      }
+      // Add bubbles
+      for (let i = 0; i < 12; i++) {
+        const left = (i * 11) % 100;
+        const duration = 8 + (i * 2) % 8;
+        const delay = -(i * 2) % 10;
+        items.push(<div key={`b-${i}`} className="bg-bubble" style={{ left: `${left}%`, animationDuration: `${duration}s`, animationDelay: `${delay}s` }}>○</div>);
+      }
+    } else if (theme === 'jungle') {
+      // Jungle: Safari animals and leaves
+      const animals = ['🦁', '🐘', '🦒', '🦓', '🐵', '🦜'];
+      for (let i = 0; i < 6; i++) {
+        const left = (i * 18) % 100;
+        const duration = 25 + (i * 5) % 15;
+        const delay = -(i * 4) % 20;
+        items.push(<div key={`a-${i}`} className="bg-animal" style={{ left: `${left}%`, animationDuration: `${duration}s`, animationDelay: `${delay}s` }}>{animals[i]}</div>);
+      }
+      // Add leaves
+      for (let i = 0; i < 8; i++) {
+        const left = (i * 13) % 100;
+        const duration = 120 + (i * 25) % 60;
+        const delay = -(i * 30) % 100;
+        items.push(<div key={`l-${i}`} className="bg-leaf" style={{ left: `${left}%`, animationDuration: `${duration}s`, animationDelay: `${delay}s` }}>🍃</div>);
+      }
+    } else if (theme === 'sports') {
+      // Sports: Bouncing balls
+      const balls = ['⚽', '🏀', '🏈', '⚾', '🎾'];
+      for (let i = 0; i < 8; i++) {
+        const left = (i * 14) % 100;
+        const duration = 3 + (i * 0.5) % 2;
+        const delay = -(i * 0.5) % 3;
+        items.push(<div key={`ball-${i}`} className="bg-ball" style={{ left: `${left}%`, animationDuration: `${duration}s`, animationDelay: `${delay}s` }}>{balls[i % balls.length]}</div>);
       }
     }
     return items;
@@ -251,11 +282,11 @@ const App: React.FC = () => {
     </div>
   );
 
-  const themeClasses = { 
-    sunny: 'bg-[#fefce8]', 
-    evening: 'bg-[#0f172a]', 
-    park: 'bg-[#f0fdf4]', 
-    home: 'bg-[#fff7ed]'
+  const themeClasses = {
+    space: 'bg-[#0f172a]',     // Dark space blue
+    ocean: 'bg-[#0ea5e9]',     // Ocean blue
+    jungle: 'bg-[#15803d]',    // Jungle green
+    sports: 'bg-[#38bdf8]'     // Sports sky blue
   };
 
   if (!user && currentPage !== 'login') {

@@ -53,16 +53,7 @@
       100% { transform: translate3d(0, 115vh, 0) rotate(120deg); opacity: 0; }
     }
 
-    .bg-cloud {
-      position: absolute;
-      left: 0;
-      background: white;
-      border-radius: 120px;
-      animation: drift linear infinite;
-      pointer-events: none;
-      will-change: transform;
-      box-shadow: 0 10px 50px rgba(255,255,255,0.95);
-    }
+    /* Space Theme */
     .bg-star {
       position: absolute;
       color: gold;
@@ -71,12 +62,84 @@
       pointer-events: none;
       will-change: transform, opacity;
     }
+    .bg-planet {
+      position: absolute;
+      right: -100px;
+      font-size: 5rem;
+      animation: drift-planet linear infinite;
+      pointer-events: none;
+      will-change: transform;
+    }
+    @keyframes drift-planet {
+      0% { transform: translate3d(100vw, 0, 0) rotate(0deg); }
+      100% { transform: translate3d(-200px, 0, 0) rotate(360deg); }
+    }
+
+    /* Ocean Theme */
+    .bg-fish {
+      position: absolute;
+      top: -50px;
+      font-size: 3rem;
+      animation: swim linear infinite;
+      pointer-events: none;
+      will-change: transform;
+    }
+    @keyframes swim {
+      0% { transform: translate3d(0, 130vh, 0) scaleX(-1); }
+      25% { transform: translate3d(60px, 75vh, 0) scaleX(-1); }
+      50% { transform: translate3d(-60px, 50vh, 0) scaleX(1); }
+      75% { transform: translate3d(60px, 25vh, 0) scaleX(1); }
+      100% { transform: translate3d(0, -50px, 0) scaleX(-1); }
+    }
+    .bg-bubble {
+      position: absolute;
+      bottom: -30px;
+      font-size: 2.5rem;
+      color: rgba(255, 255, 255, 0.4);
+      animation: bubble linear infinite;
+      pointer-events: none;
+      will-change: transform;
+    }
+    @keyframes bubble {
+      0% { transform: translate3d(0, 0, 0) scale(0.8); opacity: 0.3; }
+      50% { transform: translate3d(30px, -50vh, 0) scale(1); opacity: 0.6; }
+      100% { transform: translate3d(-30px, -100vh, 0) scale(0.5); opacity: 0; }
+    }
+
+    /* Jungle Theme */
+    .bg-animal {
+      position: absolute;
+      top: -80px;
+      font-size: 4rem;
+      animation: safari-walk linear infinite;
+      pointer-events: none;
+      will-change: transform;
+    }
+    @keyframes safari-walk {
+      0% { transform: translate3d(-100px, 0, 0); opacity: 0; }
+      5%, 95% { opacity: 1; }
+      100% { transform: translate3d(calc(100vw + 100px), 0, 0); opacity: 0; }
+    }
     .bg-leaf {
       position: absolute;
       font-size: 2rem;
       animation: fall-sway linear infinite;
       pointer-events: none;
       will-change: transform;
+    }
+
+    /* Sports Theme */
+    .bg-ball {
+      position: absolute;
+      bottom: 0;
+      font-size: 3.5rem;
+      animation: bounce ease-in-out infinite;
+      pointer-events: none;
+      will-change: transform;
+    }
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0) rotate(0deg); }
+      50% { transform: translateY(-80vh) rotate(180deg); }
     }
 
     .custom-scrollbar::-webkit-scrollbar {
