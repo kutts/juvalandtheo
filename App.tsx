@@ -21,7 +21,7 @@ const App: React.FC = () => {
   const [user, setUser] = useState<AuthUser>(null);
   const [pin, setPin] = useState('');
   const [loginTarget, setLoginTarget] = useState<AuthUser>(null);
-  const [theme, setTheme] = useState<Theme>('sunny');
+  const [theme, setTheme] = useState<Theme>('space');
   const [heroFilter, setHeroFilter] = useState('all');
   const [showPinWarning, setShowPinWarning] = useState(false);
   
@@ -87,6 +87,13 @@ const App: React.FC = () => {
       const savedLang = localStorage.getItem('juval-theo-lang');
       const savedUser = localStorage.getItem('juval-theo-user') as AuthUser;
 
+      console.log('[INIT] Loading from localStorage:', {
+        hasSavedPosts: !!savedPosts,
+        postsCount: savedPosts ? JSON.parse(savedPosts).length : 0,
+        savedLang,
+        savedUser
+      });
+
       if (savedPosts) {
         const parsed = JSON.parse(savedPosts);
         setPosts(Array.isArray(parsed) ? parsed : INITIAL_POSTS);
@@ -106,6 +113,7 @@ const App: React.FC = () => {
   useEffect(() => {
     if (initialized.current) {
       try {
+        console.log('[SAVE] Saving to localStorage:', posts.length, 'posts');
         localStorage.setItem('juval-theo-posts', JSON.stringify(posts));
       } catch (e) {
         console.warn("Storage full, pruning...", e);
