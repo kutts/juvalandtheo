@@ -10,7 +10,7 @@ import SettingsPage from './components/SettingsPage';
 import { migrateAuthIfNeeded, isAuthInitialized, verifyLogin, needsPinUpdate } from './services/authService';
 
 const MAX_POSTS_IN_STORAGE = 12;
-const THEMES: Theme[] = ['space', 'ocean', 'jungle', 'sports'];
+const THEMES: Theme[] = ['space', 'ocean', 'jungle', 'sports', 'pokemon', 'dinosaur'];
 
 const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<Page>('home');
@@ -272,6 +272,57 @@ const App: React.FC = () => {
         const delay = -(i * 0.5) % 3;
         items.push(<div key={`ball-${i}`} className="bg-ball" style={{ left: `${left}%`, animationDuration: `${duration}s`, animationDelay: `${delay}s` }}>{balls[i % balls.length]}</div>);
       }
+    } else if (theme === 'pokemon') {
+      // Pokemon: Flying and walking Pokemon
+      const flyingPokemon = ['🦅', '🦋', '🐉', '🦇'];
+      const walkingPokemon = ['⚡', '🔥', '💧', '🌿', '⭐'];
+      // Flying Pokemon
+      for (let i = 0; i < 6; i++) {
+        const top = (i * 18) % 80;
+        const duration = 20 + (i * 5) % 15;
+        const delay = -(i * 4) % 20;
+        items.push(<div key={`fp-${i}`} className="bg-pokemon-fly" style={{ top: `${top}%`, animationDuration: `${duration}s`, animationDelay: `${delay}s` }}>{flyingPokemon[i % flyingPokemon.length]}</div>);
+      }
+      // Pokeballs bouncing
+      for (let i = 0; i < 5; i++) {
+        const left = (i * 20) % 100;
+        const duration = 4 + (i * 0.5) % 2;
+        const delay = -(i * 0.8) % 4;
+        items.push(<div key={`pb-${i}`} className="bg-pokeball" style={{ left: `${left}%`, animationDuration: `${duration}s`, animationDelay: `${delay}s` }}>⚪</div>);
+      }
+      // Element symbols floating
+      for (let i = 0; i < 8; i++) {
+        const top = (i * 15) % 100;
+        const left = (i * 13) % 100;
+        const duration = 30 + (i * 5) % 20;
+        const delay = -(i * 5) % 25;
+        items.push(<div key={`elem-${i}`} className="bg-pokemon-element" style={{ top: `${top}%`, left: `${left}%`, animationDuration: `${duration}s`, animationDelay: `${delay}s` }}>{walkingPokemon[i % walkingPokemon.length]}</div>);
+      }
+    } else if (theme === 'dinosaur') {
+      // Dinosaur: Walking dinos and prehistoric elements
+      const dinos = ['🦕', '🦖', '🦴', '🥚'];
+      const prehistoric = ['🌋', '🌴', '🪨', '🦴'];
+      // Walking dinosaurs
+      for (let i = 0; i < 6; i++) {
+        const top = 60 + (i * 8) % 30;
+        const duration = 25 + (i * 5) % 15;
+        const delay = -(i * 5) % 20;
+        items.push(<div key={`dino-${i}`} className="bg-dino-walk" style={{ top: `${top}%`, animationDuration: `${duration}s`, animationDelay: `${delay}s` }}>{dinos[i % dinos.length]}</div>);
+      }
+      // Flying pterodactyls
+      for (let i = 0; i < 4; i++) {
+        const top = 10 + (i * 15) % 40;
+        const duration = 18 + (i * 3) % 12;
+        const delay = -(i * 4) % 15;
+        items.push(<div key={`ptero-${i}`} className="bg-pterodactyl" style={{ top: `${top}%`, animationDuration: `${duration}s`, animationDelay: `${delay}s` }}>🦅</div>);
+      }
+      // Falling meteors/rocks
+      for (let i = 0; i < 5; i++) {
+        const left = (i * 22) % 100;
+        const duration = 8 + (i * 2) % 6;
+        const delay = -(i * 3) % 10;
+        items.push(<div key={`meteor-${i}`} className="bg-meteor" style={{ left: `${left}%`, animationDuration: `${duration}s`, animationDelay: `${delay}s` }}>☄️</div>);
+      }
     }
     return items;
   }, [theme]);
@@ -286,7 +337,9 @@ const App: React.FC = () => {
     space: 'bg-[#0f172a]',     // Dark space blue
     ocean: 'bg-[#0ea5e9]',     // Ocean blue
     jungle: 'bg-[#15803d]',    // Jungle green
-    sports: 'bg-[#38bdf8]'     // Sports sky blue
+    sports: 'bg-[#38bdf8]',    // Sports sky blue
+    pokemon: 'bg-[#fee140]',   // Pokemon yellow
+    dinosaur: 'bg-[#c2410c]'   // Prehistoric orange/brown
   };
 
   if (!user && currentPage !== 'login') {

@@ -15,5 +15,5 @@ export interface Post {
 }
 
 export type AuthUser = 'Dad' | 'Mom' | null;
-export type Theme = 'space' | 'ocean' | 'jungle' | 'sports';
+export type Theme = 'space' | 'ocean' | 'jungle' | 'sports' | 'pokemon' | 'dinosaur';
 export type Page = 'home' | 'gallery' | 'upload' | 'latest' | 'detail' | 'login' | 'settings' | 'firstTimeSetup';
