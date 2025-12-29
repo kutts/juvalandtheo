@@ -130,29 +130,29 @@ const PostCard: React.FC<PostCardProps> = ({ post, variant = 'small', lang, onDe
       `}</style>
 
       {onDelete && (
-        <div className="absolute top-6 right-6 z-[80] flex items-center gap-3">
+        <div className="absolute top-2 right-2 md:top-6 md:right-6 z-[80] flex items-center gap-2">
           {showConfirm ? (
-            <div className="flex gap-2 animate-fade-in">
-              <button 
+            <div className="flex gap-1 md:gap-2 animate-fade-in">
+              <button
                 type="button"
                 onClick={handleFinalDelete}
-                className="bg-red-500 cartoon-border px-6 py-3 rounded-2xl font-black text-white shadow-lg hover:scale-110 active:scale-95 transition-all text-base uppercase flex items-center gap-2"
+                className="bg-red-500 cartoon-border px-3 py-2 md:px-6 md:py-3 rounded-xl md:rounded-2xl font-black text-white shadow-lg hover:scale-110 active:scale-95 transition-all text-xs md:text-base uppercase flex items-center gap-1 md:gap-2"
               >
                 ✅ {lang === 'es' ? 'SÍ' : 'YES'}
               </button>
-              <button 
+              <button
                 type="button"
                 onClick={handleToggleConfirm}
-                className="bg-slate-500 cartoon-border px-6 py-3 rounded-2xl font-black text-white shadow-lg hover:scale-110 active:scale-95 transition-all text-base uppercase flex items-center gap-2"
+                className="bg-slate-500 cartoon-border px-3 py-2 md:px-6 md:py-3 rounded-xl md:rounded-2xl font-black text-white shadow-lg hover:scale-110 active:scale-95 transition-all text-xs md:text-base uppercase flex items-center gap-1 md:gap-2"
               >
                 ❌ {lang === 'es' ? 'NO' : 'NO'}
               </button>
             </div>
           ) : (
-            <button 
+            <button
               type="button"
               onClick={handleToggleConfirm}
-              className="bg-white/95 backdrop-blur-md cartoon-border w-14 h-14 rounded-full flex items-center justify-center text-2xl font-black text-slate-800 shadow-[6px_6px_0px_#1e293b] hover:scale-125 hover:bg-red-500 hover:text-white active:scale-95 transition-all cursor-pointer group"
+              className="bg-white/95 backdrop-blur-md cartoon-border w-10 h-10 md:w-14 md:h-14 rounded-full flex items-center justify-center text-xl md:text-2xl font-black text-slate-800 shadow-[4px_4px_0px_#1e293b] md:shadow-[6px_6px_0px_#1e293b] hover:scale-125 hover:bg-red-500 hover:text-white active:scale-95 transition-all cursor-pointer group"
               title={lang === 'es' ? 'Borrar' : 'Delete'}
             >
               <span className="group-hover:animate-bounce">🗑️</span>
@@ -238,14 +238,14 @@ const PostCard: React.FC<PostCardProps> = ({ post, variant = 'small', lang, onDe
         )}
 
         <div className="absolute inset-0 z-20 pointer-events-none">
-          <div className="absolute top-8 left-8 flex flex-col gap-4 items-start pointer-events-auto">
-            <div className="bg-amber-400 cartoon-border px-6 py-2 rounded-2xl text-base font-black shadow-lg transform -rotate-3 select-none text-slate-900">
+          <div className="absolute top-3 left-3 md:top-8 md:left-8 flex flex-col gap-4 items-start pointer-events-auto">
+            <div className="bg-amber-400 cartoon-border px-2 py-1 md:px-6 md:py-2 rounded-xl md:rounded-2xl text-xs md:text-base font-black shadow-lg transform -rotate-3 select-none text-slate-900">
               {post.date}
             </div>
           </div>
-          
+
           {!showConfirm && (
-            <div className="absolute bottom-8 right-8 bg-sky-400 cartoon-border px-6 py-2 rounded-2xl text-base font-black text-white shadow-lg transform rotate-3 select-none pointer-events-auto">
+            <div className="absolute bottom-3 right-3 md:bottom-8 md:right-8 bg-sky-400 cartoon-border px-2 py-1 md:px-6 md:py-2 rounded-xl md:rounded-2xl text-xs md:text-base font-black text-white shadow-lg transform rotate-3 select-none pointer-events-auto">
               {byLabel} {post.author === 'Dad' ? (lang === 'es' ? 'Papá' : 'Dad') : (lang === 'es' ? 'Mamá' : 'Mom')}
             </div>
           )}
