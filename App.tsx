@@ -481,7 +481,7 @@ const App: React.FC = () => {
             {latest ? (
               <div className="mb-24 animate-fade-in">
                 <div className="inline-block bg-amber-500 text-white cartoon-border px-8 py-3 rounded-2xl text-2xl font-black uppercase mb-6 transform -rotate-1 shadow-lg">{t.fresh}</div>
-                <PostCard post={latest} variant="large" lang={lang} onDelete={handleDeletePost} onOpen={openPostDetail} />
+                <PostCard post={latest} variant="large" lang={lang} onDelete={user ? handleDeletePost : undefined} onOpen={openPostDetail} />
               </div>
             ) : (
               <div className={`text-center py-20 font-black text-3xl opacity-50 uppercase ${theme === 'evening' ? 'text-white' : 'text-slate-800'}`}>No memories yet...</div>
@@ -490,7 +490,7 @@ const App: React.FC = () => {
               <div className="pb-20">
                 <h3 className={`text-4xl font-black ${theme === 'evening' ? 'text-white' : 'text-slate-800'} mb-12 uppercase text-center md:text-left`}>{t.archives}</h3>
                 <div className="flex flex-col gap-16">
-                  {archives.map(post => <PostCard key={post.id} post={post} lang={lang} onDelete={handleDeletePost} onOpen={openPostDetail} />)}
+                  {archives.map(post => <PostCard key={post.id} post={post} lang={lang} onDelete={user ? handleDeletePost : undefined} onOpen={openPostDetail} />)}
                 </div>
               </div>
             )}
@@ -566,7 +566,7 @@ const App: React.FC = () => {
         return (
           <div className="py-10 px-4 max-w-5xl mx-auto animate-fade-in">
             <button onClick={() => setCurrentPage('home')} className="bg-white text-slate-800 cartoon-border px-8 py-4 rounded-2xl font-black text-xl mb-12 cartoon-button shadow-md">{t.back}</button>
-            {selectedPost ? <PostCard post={selectedPost} variant="large" lang={lang} onDelete={handleDeletePost} /> : <div className="text-white text-center text-2xl">Missing moment.</div>}
+            {selectedPost ? <PostCard post={selectedPost} variant="large" lang={lang} onDelete={user ? handleDeletePost : undefined} /> : <div className="text-white text-center text-2xl">Missing moment.</div>}
           </div>
         );
       case 'settings':
