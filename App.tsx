@@ -509,11 +509,11 @@ const App: React.FC = () => {
                 <h2 className="text-6xl font-black text-slate-800 mb-12 uppercase text-center drop-shadow-lg">{t.whoAreYou}</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-12 w-full max-w-4xl">
                   <button onClick={() => setLoginTarget('Dad')} className="bg-sky-500 cartoon-border p-12 rounded-[50px] hover:scale-105 active:scale-95 group transition-all">
-                    <span className="text-9xl mb-6 block group-hover:animate-float">🧔</span>
+                    <span className="text-9xl mb-6 block group-hover:animate-float">🧔🏽</span>
                     <h4 className="text-4xl font-black text-white uppercase">{t.dadCorner}</h4>
                   </button>
                   <button onClick={() => setLoginTarget('Mom')} className="bg-rose-400 cartoon-border p-12 rounded-[50px] hover:scale-105 active:scale-95 group transition-all">
-                    <span className="text-9xl mb-6 block group-hover:animate-float">👩</span>
+                    <span className="text-9xl mb-6 block group-hover:animate-float">👩🏽</span>
                     <h4 className="text-4xl font-black text-white uppercase">{t.momCorner}</h4>
                   </button>
                 </div>
@@ -575,7 +575,7 @@ const App: React.FC = () => {
                 <p className={`text-xl font-bold mb-12 italic ${theme === 'evening' ? 'text-slate-300' : 'text-slate-500'}`}>{t.multipleHint}</p>
                 <label className="cursor-pointer group block">
                   <div className={`cartoon-border p-16 rounded-[50px] transition-all group-hover:scale-105 shadow-2xl ${user === 'Dad' ? 'bg-sky-500' : 'bg-rose-400'}`}>
-                    <span className="text-9xl mb-6 block group-hover:animate-float">{user === 'Dad' ? '🧔' : '👩'}</span>
+                    <span className="text-9xl mb-6 block group-hover:animate-float">{user === 'Dad' ? '🧔🏽' : '👩🏽'}</span>
                     <h4 className="text-4xl font-black text-white uppercase">{user === 'Dad' ? t.dadCorner : t.momCorner}</h4>
                     <div className="mt-8 bg-white text-slate-800 px-8 py-4 rounded-3xl font-black text-xl uppercase cartoon-border inline-block hover:bg-amber-400 transition-colors">✨ Choose Photos</div>
                   </div>
