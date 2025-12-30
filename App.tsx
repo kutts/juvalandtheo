@@ -139,8 +139,28 @@ const App: React.FC = () => {
     const newPin = pin + digit;
     if (newPin.length <= 4) setPin(newPin);
     if (newPin.length === 4) {
+      // Rate limiting: Check for too many failed attempts
+      const LOCKOUT_KEY = 'juval-theo-lockout';
+      const ATTEMPTS_KEY = 'juval-theo-attempts';
+      const MAX_ATTEMPTS = 5;
+      const LOCKOUT_TIME = 15 * 60 * 1000; // 15 minutes
+
+      const lockoutUntil = localStorage.getItem(LOCKOUT_KEY);
+      if (lockoutUntil && Date.now() < parseInt(lockoutUntil)) {
+        const minutesLeft = Math.ceil((parseInt(lockoutUntil) - Date.now()) / 60000);
+        alert(lang === 'es'
+          ? `Demasiados intentos. Intenta en ${minutesLeft} minutos`
+          : `Too many attempts. Try again in ${minutesLeft} minutes`);
+        setPin('');
+        return;
+      }
+
       const isValid = await verifyLogin(loginTarget!, newPin);
       if (isValid) {
+        // Success - clear attempts
+        localStorage.removeItem(ATTEMPTS_KEY);
+        localStorage.removeItem(LOCKOUT_KEY);
+
         setUser(loginTarget);
         localStorage.setItem('juval-theo-user', loginTarget!);
 
@@ -155,8 +175,25 @@ const App: React.FC = () => {
         setLoginTarget(null);
         setPin('');
       } else {
+        // Failed attempt - track it
+        const attempts = parseInt(localStorage.getItem(ATTEMPTS_KEY) || '0') + 1;
+        localStorage.setItem(ATTEMPTS_KEY, attempts.toString());
+
+        if (attempts >= MAX_ATTEMPTS) {
+          const lockoutUntil = Date.now() + LOCKOUT_TIME;
+          localStorage.setItem(LOCKOUT_KEY, lockoutUntil.toString());
+          alert(lang === 'es'
+            ? 'Demasiados intentos fallidos. Espera 15 minutos'
+            : 'Too many failed attempts. Wait 15 minutes');
+          localStorage.setItem(ATTEMPTS_KEY, '0');
+        } else {
+          const remaining = MAX_ATTEMPTS - attempts;
+          alert(lang === 'es'
+            ? `¡Código incorrecto! ${remaining} intentos restantes`
+            : `Wrong code! ${remaining} attempts remaining`);
+        }
+
         setPin('');
-        alert(lang === 'es' ? '¡Código incorrecto!' : 'Wrong code!');
       }
     }
   };
@@ -193,6 +230,39 @@ const App: React.FC = () => {
     if (!files || files.length === 0) return;
 
     const fileArray = Array.from(files);
+
+    // Validation: Maximum 10 files per upload
+    if (fileArray.length > 10) {
+      alert(lang === 'es'
+        ? 'Máximo 10 archivos por publicación'
+        : 'Maximum 10 files per post');
+      e.target.value = '';
+      return;
+    }
+
+    // Validation: Maximum file size 100MB
+    const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
+    const oversizedFile = fileArray.find(file => file.size > MAX_FILE_SIZE);
+    if (oversizedFile) {
+      alert(lang === 'es'
+        ? `Archivo muy grande: ${oversizedFile.name}. Máximo 100MB`
+        : `File too large: ${oversizedFile.name}. Maximum 100MB`);
+      e.target.value = '';
+      return;
+    }
+
+    // Validation: Only images and videos
+    const invalidFile = fileArray.find(file =>
+      !file.type.startsWith('image/') && !file.type.startsWith('video/')
+    );
+    if (invalidFile) {
+      alert(lang === 'es'
+        ? `Tipo de archivo no válido: ${invalidFile.name}`
+        : `Invalid file type: ${invalidFile.name}`);
+      e.target.value = '';
+      return;
+    }
+
     setPendingFiles(fileArray); // Store File objects for upload
 
     // Create preview URLs for display

@@ -248,10 +248,72 @@ juvalandtheo/
 - `posts/{postId}/image_{index}.jpg` - Compressed images
 - `posts/{postId}/video_{index}.mp4` - Video files
 
+## Security Model
+
+**Trust-Based Private App**: This is a family photo album where only family members know the URL. The security model is appropriate for this use case.
+
+### Authentication
+- **Client-side only**: PINs hashed with bcrypt (10 rounds) stored in Firestore
+- **No Firebase Auth**: Two hardcoded users (Dad/Mom) with PIN-based login
+- **Rate limiting**: 5 failed attempts = 15 minute lockout (localStorage-based)
+- **Session**: User stored in localStorage, persists across page loads
+- **Suitable for**: Private family apps with trusted users
+- **NOT suitable for**: Public apps, sensitive data, or untrusted users
+
+### Data Protection
+- **File validation**: Max 10 files per upload, 100MB per file, images/videos only
+- **Client-side compression**: Images resized to 800px width before upload
+- **Firestore**: Stores post metadata (URLs, captions, dates)
+- **Firebase Storage**: Stores actual media files (CDN URLs)
+
+### API Keys
+- **Firebase config**: Public (safe - security via Firestore rules)
+- **Gemini API**: Embedded in client (recommend domain restrictions in Google Cloud Console)
+- **Environment variables**: Stored in GitHub Secrets for deployment
+
+### Access Control
+- **Public read**: Anyone can view posts (no login required)
+- **Protected actions**: Upload, delete, settings require authentication
+- **Delete restriction**: Only authenticated users see delete button
+- **URL obscurity**: Primary security layer - site not publicly indexed
+
+### Recommended Firebase Security Rules
+
+**Firestore** (`settings/auth` for PIN storage, `posts` for data):
+```javascript
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /posts/{postId} {
+      allow read: if true;
+      allow write: if false;  // Disable if you want stricter control
+    }
+    match /settings/auth {
+      allow read, write: if true;  // Needed for client-side PIN management
+    }
+  }
+}
+```
+
+**Storage** (for images/videos):
+```javascript
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      allow read: if true;
+      allow write: if false;  // Disable if you want stricter control
+    }
+  }
+}
+```
+
 ## Known Limitations
 
 - Client-side authentication (PINs in Firestore, not Firebase Auth)
 - No user accounts or registration
 - Two hardcoded users: Dad and Mom
 - Gemini AI requires valid API key (fallback to generic captions)
-- No image optimization on server side (all compression client-side)
+- No server-side validation (all validation client-side only)
+- Rate limiting can be bypassed by clearing localStorage
+- Relies on URL obscurity as primary security layer
